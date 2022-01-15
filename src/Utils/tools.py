@@ -50,3 +50,29 @@ def create_todays_games(input_list):
         away_team = away.get('tc') + ' ' + away.get('tn')
         games.append([home_team, away_team])
     return games
+
+def create_seasons_dict(start_year,end_year):
+    
+    num_years=end_year-start_year
+    
+    seasons_dicts=[]
+    
+    for i in range(num_years):
+        
+        season_start_year=start_year+i
+        season_end_year=season_start_year+1
+        
+        start_year_str=str(season_start_year)
+        
+        years=[season_start_year,season_end_year]
+        
+        start_year_str=str(season_start_year)
+        end_year_str=str(season_end_year)[-2:]
+        season=f'{start_year_str}-{end_year_str}'
+        
+        dic={"season":season,
+             "years":years}
+        
+        seasons_dicts.append(dic)
+    
+    return seasons_dicts
