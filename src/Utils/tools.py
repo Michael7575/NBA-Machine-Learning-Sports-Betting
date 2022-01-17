@@ -1,5 +1,6 @@
 import requests
 import pandas as pd
+from datetime import datetime
 
 games_header = {
     'user-agent': 'Mozilla/5.0 (Windows NT 6.2; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) '
@@ -35,7 +36,6 @@ def get_todays_games_json(url):
     json = raw_data.json()
     return json.get('gs').get('g')
 
-
 def to_data_frame(data):
     data_list = data[0]
     return pd.DataFrame(data=data_list.get('rowSet'), columns=data_list.get('headers'))
@@ -48,7 +48,29 @@ def create_todays_games(input_list):
         away = game.get('v')
         home_team = home.get('tc') + ' ' + home.get('tn')
         away_team = away.get('tc') + ' ' + away.get('tn')
-        games.append([home_team, away_team])
+        
+        year = game['gcode'][:4]
+        month = game['gcode'][4:6]
+        day = game['gcode'][6:8]
+        dt = f'{year}-{month}-{day}'
+        
+        try:
+            st = game['stt']
+            st_timezone = st[-2:]
+            st_time = st[:-3]    
+            dt_string = f'{dt} {st_time}'  
+            timestamp = datetime.strptime(dt_string, "%Y-%m-%d %I:%M %p")
+        except:
+            st = 'Game has started'
+            timestamp = datetime.strptime(dt, "%Y-%m-%d")
+            st_timezone = 'ET'
+        
+        games.append({'home_team':home_team,
+                      'away_team':away_team,
+                      'date': dt,
+                      'start_time': st,
+                      'timestamp': timestamp,
+                      'timezone': st_timezone})
     return games
 
 def create_seasons_dict(start_year,end_year):
