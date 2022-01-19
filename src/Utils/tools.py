@@ -1,6 +1,7 @@
 import requests
 import pandas as pd
 from datetime import datetime
+from pycaret.classification import *
 
 games_header = {
     'user-agent': 'Mozilla/5.0 (Windows NT 6.2; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) '
@@ -98,3 +99,81 @@ def create_seasons_dict(start_year,end_year):
         seasons_dicts.append(dic)
     
     return seasons_dicts
+
+def expected_value(Pwin, odds):
+    """
+    In betting, the expected value (EV) is the measure of what a bettor 
+    can expect to win or lose per bet placed on the same odds time and time again. 
+    Positive expected value (+EV) implies profit over time, 
+    while a negative value (-EV) implies a loss over time.
+    
+    """
+    Ploss = 1 - Pwin
+    Mwin = payout(odds)
+    return round((Pwin * Mwin) - (Ploss * 100), 2)
+
+
+def payout(odds):
+    if odds > 0:
+        return odds
+    else:
+        return (100 / (-1 * odds)) * 100
+    
+def get_expected_values(pred_df):
+    
+    pred_dict = pred_df.to_dict(orient='records')
+    
+    for game in pred_dict:
+
+        Pwin_home = round(game['Score_W'],4)
+        Pwin_away = round(game['Score_L'],4)
+
+        odds_home = int(game['ml_home'])
+        odds_away = int(game['ml_away'])
+
+        home_team_ev = expected_value(Pwin_home, odds_home)
+        away_team_ev = expected_value(Pwin_away, odds_away)
+
+        game['home_team_ml_expected_value'] = home_team_ev
+        game['away_team_ml_expected_value'] = away_team_ev
+        
+    return pred_dict
+
+def predict(games):
+    
+    if isinstance(games, list):
+        pred_df = pd.DataFrame(games)
+        
+    else:
+        
+        pred_df = games
+        
+    pred_df.columns = pred_df.columns.str.lower()
+
+    #load models
+    win_loss_model = load_model('win_loss_acc_72')
+    ou_model = load_model('ou_cover_acc_56')
+    
+    #make predictions
+    win_loss_prediction_df = predict_model(win_loss_model, data = pred_df, raw_score = True)
+    ou_prediction_df = predict_model(ou_model, data = pred_df, raw_score = True)
+    
+    #Get ML expect values
+    win_loss_results = get_expected_values(win_loss_prediction_df)
+    ou_results = ou_prediction_df.to_dict(orient='records')
+    
+    return win_loss_results, ou_results
+
+def clean_train_data(raw_df):
+    
+    raw_df.drop(['Win_Margin', 'Unnamed: 0'], axis=1, errors='ignore',inplace=True)
+    
+    raw_df.columns=raw_df.columns.str.lower()
+    
+    raw_df=raw_df[~raw_df['ml_home'].isin(["NL"])]
+    
+    raw_df['ml_home']=raw_df['ml_home'].astype(float)
+    raw_df['ml_away']=raw_df['ml_away'].astype(float)
+    
+    return raw_df
+
